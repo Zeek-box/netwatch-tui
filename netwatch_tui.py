@@ -1130,7 +1130,7 @@ class NetwatchTUI:
             "  Mouse click row       Select connection row",
             "  o                     Open/close selected connection detail",
             "  /                     Start live search",
-            "  c                     Clear search in connections view",
+            "  c                     Capture snapshot, or clear search when filtered",
             "  C                     Capture current incident-response snapshot",
             "  a                     AbuseIPDB lookup for selected public remote IP",
             "  Tab                   Toggle connections and AbuseIPDB lookup log",
@@ -1193,7 +1193,7 @@ class NetwatchTUI:
         elif self.view == "help":
             keys = "Esc/? back  q quit"
         else:
-            keys = "? help  o details  C capture  / search  a abuse  Tab log  arrows move/sort  q quit"
+            keys = "? help  o details  c/C capture  / search  a abuse  Tab log  arrows move/sort  q quit"
         safe_addstr(self.stdscr, h - 1, 1, truncate(keys, w - 2), self.color(6))
         safe_addstr(self.stdscr, h - 2, 0, " " * (w - 1), self.color(6 if self.search_active else 0))
         if self.search_active:
@@ -1260,7 +1260,10 @@ class NetwatchTUI:
             self.search_active = True
             self.status = "Search mode"
         elif key == ord("c"):
-            self.clear_search()
+            if self.filter_text:
+                self.clear_search()
+            else:
+                self.capture_snapshot()
         elif key in (ord("s"), ord("S")):
             self.cycle_sort()
         elif key == ord("K"):

@@ -70,7 +70,7 @@ The file is written with user-only permissions.
 | Mouse click row | Select row |
 | `o` | Open connection detail view |
 | `/` | Search/filter |
-| `c` | Clear search |
+| `c` | Capture current snapshot, or clear search when a filter is active |
 | `a` | Check selected remote public IP with AbuseIPDB |
 | `C` | Capture current connection/process snapshot |
 | `Tab` | Switch between connections and lookup log |
@@ -103,7 +103,7 @@ rport:443
 
 ## Incident response
 
-Press `C` to capture the current state. This is a JSON/text snapshot feature, not packet capture, and it does not write PCAP files. Netwatch writes timestamped files under:
+Press `c` or `C` to capture the current state. Lowercase `c` only clears search when a filter is active. This is a JSON/text snapshot feature, not packet capture, and it does not write PCAP files. Netwatch writes timestamped files under:
 
 ```text
 captures/
