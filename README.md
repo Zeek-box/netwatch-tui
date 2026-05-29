@@ -2,6 +2,12 @@
 
 A terminal dashboard for Ubuntu/Linux that shows active TCP and UDP connections, resolves hostnames, enriches country data when available, and lets you manually check selected public IPs with AbuseIPDB.
 
+## Preview
+
+![Netwatch TUI preview](docs/netwatch-tui-preview.svg)
+
+The preview uses representative sample data. Live rows depend on the sockets, process permissions, DNS results, and optional lookups available on the host running Netwatch.
+
 ## What it shows
 
 - Active inbound, outbound, local, and listening sockets
@@ -97,13 +103,13 @@ rport:443
 
 ## Incident response
 
-Press `C` to capture the current state. Netwatch writes timestamped files under:
+Press `C` to capture the current state. This is a JSON/text snapshot feature, not packet capture, and it does not write PCAP files. Netwatch writes timestamped files under:
 
 ```text
 captures/
 ```
 
-Each capture includes current connections, enriched fields, raw `ss` output, and process metadata for visible PIDs. Process metadata includes executable path, command line, cwd, selected `/proc/status` fields, socket file descriptors, executable file metadata, and SHA-256 where readable.
+Each snapshot includes current connections, enriched fields, raw `ss` output, and process metadata for visible PIDs. Process metadata includes executable path, command line, cwd, selected `/proc/status` fields, socket file descriptors, executable file metadata, and SHA-256 where readable.
 
 Environment variables are intentionally not captured because they often contain secrets.
 
