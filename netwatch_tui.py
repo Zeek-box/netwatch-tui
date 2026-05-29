@@ -636,6 +636,7 @@ class NetwatchTUI:
         self.log_scroll = 0
         self.log_lock = threading.Lock()
         self.abuse_log: List[Dict[str, object]] = load_abuse_log()
+        self.last_raw_ss = ""
 
     def setup(self) -> None:
         curses.curs_set(0)
@@ -687,6 +688,7 @@ class NetwatchTUI:
 
     def refresh(self) -> None:
         raw = run_ss()
+        self.last_raw_ss = raw
         parsed = parse_ss(raw)
         now = time.time()
         old = self.by_key
@@ -708,6 +710,71 @@ class NetwatchTUI:
         self.selected = min(self.selected, max(0, len(self.connections) - 1))
         self.last_refresh = now
         self.status = f"Refreshed {len(self.connections)} sockets"
+
+
+    def capture_snapshot(self) -> None:
+        rows = list(self.by_key.values())
+        raw = self.last_raw_ss
+        if not raw:
+            raw = run_ss()
+            self.last_raw_ss = raw
+            rows = parse_ss(raw)
+
+        stamp = utc_stamp()
+        file_stamp = stamp.replace(":", "").replace("-", "")
+        pid_metadata = {
+            pid: process_metadata(pid)
+            for pid in sorted({conn.pid for conn in rows if conn.pid.isdigit()}, key=int)
+        }
+        payload = {
+            "captured_at": stamp,
+            "connection_count": len(rows),
+            "filter": self.filter_text,
+            "sort_mode": self.sort_mode,
+            "sort_reverse": self.sort_reverse,
+            "connections": [connection_to_dict(conn) for conn in rows],
+            "processes": pid_metadata,
+            "raw_ss": raw,
+            "environment_note": "Environment variables are intentionally not captured because they often contain secrets.",
+        }
+        text_lines = [
+            f"{APP_NAME} capture",
+            f"Captured at: {stamp}",
+            f"Connections: {len(rows)}",
+            f"Filter: {self.filter_text or '<none>'}",
+            "",
+            "Connections",
+        ]
+        for conn in sorted(rows, key=lambda item: (item.direction, item.remote_ip, item.remote_port, item.process, item.pid)):
+            process = f"{conn.process}/{conn.pid}" if conn.pid else (conn.process or "-")
+            text_lines.append(
+                f"{conn.direction.upper():6} {conn.proto:4} {conn.state:11} "
+                f"{conn.local_ip}:{conn.local_port} -> {conn.remote_ip}:{conn.remote_port} "
+                f"{process} host={conn.hostname} country={conn.country} abuse={conn.abuse or '-'}"
+            )
+        text_lines.extend(["", "Process metadata"])
+        for pid, meta in pid_metadata.items():
+            exe = meta.get("exe", {}) if isinstance(meta.get("exe"), dict) else {}
+            text_lines.extend([
+                f"PID {pid}",
+                f"  exe: {exe.get('path', '-')}",
+                f"  sha256: {exe.get('sha256', '-')}",
+                f"  cwd: {meta.get('cwd', '-')}",
+                f"  cmdline: {meta.get('cmdline', '-')}",
+                f"  socket_fds: {len(meta.get('socket_fds', []))}",
+            ])
+        text_lines.extend(["", "Raw ss output", raw])
+
+        try:
+            CAPTURE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+            json_path = CAPTURE_DIR / f"netwatch-{file_stamp}.json"
+            text_path = CAPTURE_DIR / f"netwatch-{file_stamp}.txt"
+            json_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            text_path.write_text("\n".join(text_lines).rstrip() + "\n", encoding="utf-8")
+        except OSError as exc:
+            self.status = f"Capture failed: {exc}"
+            return
+        self.status = f"Captured {len(rows)} sockets to {json_path.name} and {text_path.name}"
 
     def sorted_connections(self, rows: List[Connection]) -> List[Connection]:
         if self.filter_text:
